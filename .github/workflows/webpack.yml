@@ -54,11 +54,19 @@ jobs:
           if (Test-Path $destinationPath) { Remove-Item $destinationPath }
           Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
 
-      - name: Upload Electron artifacts (non-Windows)
-        if: matrix.os != 'windows-latest'
+      - name: Upload macOS dmg
+        if: matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v6
         with:
-          name: bruno-${{ matrix.os }}-${{ github.ref_name }}
+          name: bruno-macos-dmg-${{ github.ref_name }}
+          path: packages/bruno-electron/out/bruno_*_mac.dmg
+          if-no-files-found: error
+
+      - name: Upload Linux artifacts
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v6
+        with:
+          name: bruno-ubuntu-${{ github.ref_name }}
           path: |
             packages/bruno-electron/dist/**
             packages/bruno-electron/out/**
