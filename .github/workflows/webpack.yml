@@ -1,0 +1,57 @@
+name: Build Desktop Packages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-desktop:
+    name: Build Desktop Apps
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: './package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build libraries
+        run: |
+          npm run build:graphql-docs
+          npm run build:bruno-query
+          npm run build:bruno-common
+          npm run sandbox:bundle-libraries --workspace=packages/bruno-js
+          npm run build:bruno-converters
+          npm run build:bruno-requests
+          npm run build:schema-types
+          npm run build:bruno-filestore
+
+      - name: Build web app
+        run: npm run build:web
+
+      - name: Build Electron app
+        run: npm run build:electron
+
+      - name: Upload Electron artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: bruno-${{ matrix.os }}-${{ github.ref_name }}
+          path: |
+            packages/bruno-electron/dist/**
+            packages/bruno-electron/out/**
+          if-no-files-found: error
+
