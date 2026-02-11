@@ -46,7 +46,16 @@ jobs:
       - name: Build Electron app
         run: npm run build:electron
 
-      - name: Upload Electron artifacts
+      - name: Compress Windows win-unpacked to zip
+        if: matrix.os == 'windows-latest'
+        run: |
+          $sourcePath = "packages\bruno-electron\out\win-unpacked\*"
+          $destinationPath = "packages\bruno-electron\out\bruno-win-unpacked.zip"
+          if (Test-Path $destinationPath) { Remove-Item $destinationPath }
+          Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
+
+      - name: Upload Electron artifacts (non-Windows)
+        if: matrix.os != 'windows-latest'
         uses: actions/upload-artifact@v6
         with:
           name: bruno-${{ matrix.os }}-${{ github.ref_name }}
@@ -55,3 +64,10 @@ jobs:
             packages/bruno-electron/out/**
           if-no-files-found: error
 
+      - name: Upload Windows win-unpacked zip
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v6
+        with:
+          name: bruno-windows-win-unpacked-${{ github.ref_name }}
+          path: packages/bruno-electron/out/bruno-win-unpacked.zip
+          if-no-files-found: error
