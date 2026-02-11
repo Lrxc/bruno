@@ -1,9 +1,6 @@
 name: Build Desktop Packages
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
@@ -29,16 +26,8 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Build libraries
-        run: |
-          npm run build:graphql-docs
-          npm run build:bruno-query
-          npm run build:bruno-common
-          npm run sandbox:bundle-libraries --workspace=packages/bruno-js
-          npm run build:bruno-converters
-          npm run build:bruno-requests
-          npm run build:schema-types
-          npm run build:bruno-filestore
+      - name: Setup workspaces
+        run: npm run setup
 
       - name: Build web app
         run: npm run build:web
