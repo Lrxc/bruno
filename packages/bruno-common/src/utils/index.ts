@@ -1,7 +1,8 @@
 export {
   encodeUrl,
   parseQueryParams,
-  buildQueryString
+  buildQueryString,
+  stripOrigin
 } from './url';
 
 export {
@@ -19,3 +20,8 @@ export {
   extractPromptVariables,
   extractPromptVariablesFromString
 } from './prompt-variables';
+
+export {
+  jsonToDotenv,
+  DotenvVariable
+} from './jsonToDotenv';

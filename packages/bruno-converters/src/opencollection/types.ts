@@ -177,7 +177,7 @@ export interface BrunoConfig {
   };
   protobuf?: {
     protoFiles?: { path: string }[];
-    importPaths?: { path: string; disabled?: boolean }[];
+    importPaths?: { path: string; enabled?: boolean }[];
   };
   proxy?: {
     disabled?: boolean;
@@ -207,6 +207,14 @@ export interface BrunoConfig {
   scripts?: {
     additionalContextRoots?: string[];
   };
+  openapi?: Array<{
+    sourceUrl: string;
+    groupBy?: 'tags' | 'path';
+    lastSyncDate?: string;
+    specHash?: string;
+    autoCheck?: boolean;
+    autoCheckInterval?: number;
+  }>;
 }
 
 export interface BrunoCollectionRoot {

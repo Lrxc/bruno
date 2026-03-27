@@ -39,6 +39,7 @@ import { doesRequestMatchSearchText, doesFolderHaveItemsMatchSearchText } from '
 import { getDefaultRequestPaneTab } from 'utils/collections';
 import toast from 'react-hot-toast';
 import StyledWrapper from './StyledWrapper';
+import { getKeyBindingsForActionAllOS } from 'providers/Hotkeys/keyMappings';
 import NetworkError from 'components/ResponsePane/NetworkError/index';
 import CollectionItemInfo from './CollectionItemInfo/index';
 import CollectionItemIcon from './CollectionItemIcon';
@@ -47,6 +48,7 @@ import ExampleIcon from 'components/Icons/ExampleIcon';
 import { scrollToTheActiveTab } from 'utils/tabs';
 import { isTabForItemActive as isTabForItemActiveSelector, isTabForItemPresent as isTabForItemPresentSelector } from 'src/selectors/tab';
 import { isEqual } from 'lodash';
+import { createEmptyStateMenuItems } from 'utils/collections/emptyStateRequest';
 import { calculateDraggedItemNewPathname, getInitialExampleName, findParentItemInCollection } from 'utils/collections/index';
 import { sortByNameThenSequence } from 'utils/common/index';
 import { getRevealInFolderLabel } from 'utils/common/platform';
@@ -463,7 +465,7 @@ const CollectionItem = ({ item, collectionUid, collectionPathname, searchText })
     const exampleData = {
       name: name,
       description: description,
-      status: '200',
+      status: 200,
       statusText: 'OK',
       headers: [],
       body: {
@@ -504,6 +506,9 @@ const CollectionItem = ({ item, collectionUid, collectionPathname, searchText })
 
   const folderItems = sortByNameThenSequence(filter(item.items, (i) => isItemAFolder(i) && !i.isTransient));
   const requestItems = sortItemsBySequence(filter(item.items, (i) => isItemARequest(i) && !i.isTransient));
+  const showEmptyFolderMessage = isFolder && !hasSearchText && !folderItems?.length && !requestItems?.length;
+
+  const emptyFolderMenuItems = createEmptyStateMenuItems({ dispatch, collection, itemUid: item.uid });
 
   const handleGenerateCode = () => {
     if (
@@ -561,7 +566,16 @@ const CollectionItem = ({ item, collectionUid, collectionPathname, searchText })
     const isMac = navigator.userAgent?.includes('Mac') || navigator.platform?.startsWith('Mac');
     const isModifierPressed = isMac ? e.metaKey : e.ctrlKey;
 
-    if (isModifierPressed && e.key.toLowerCase() === 'c') {
+    const [macRenameKey, winRenameKey] = getKeyBindingsForActionAllOS('renameItem');
+    const renameKey = isMac ? macRenameKey : winRenameKey;
+
+    // Only trigger rename if no modifier keys are pressed (allow Cmd+Enter for run request)
+    const hasModifier = e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
+    if (e.key.toLowerCase() === renameKey && !hasModifier) {
+      e.preventDefault();
+      e.stopPropagation();
+      setRenameItemModalOpen(true);
+    } else if (isModifierPressed && e.key.toLowerCase() === 'c') {
       e.preventDefault();
       e.stopPropagation();
       handleCopyItem();
@@ -708,6 +722,25 @@ const CollectionItem = ({ item, collectionUid, collectionPathname, searchText })
                 return <CollectionItem key={i.uid} item={i} collectionUid={collectionUid} collectionPathname={collectionPathname} searchText={searchText} />;
               })
             : null}
+          {showEmptyFolderMessage ? (
+            <div className="empty-folder-message">
+              {range(item.depth + 1).map((i) => (
+                <div className="indent-block" key={i} style={{ width: 16, minWidth: 16, height: '100%' }}>
+                  &nbsp;
+                </div>
+              ))}
+              <div style={{ paddingLeft: 8 }}>
+                <MenuDropdown
+                  items={emptyFolderMenuItems}
+                  placement="bottom-start"
+                  appendTo={dropdownContainerRef?.current || document.body}
+                  popperOptions={{ strategy: 'fixed' }}
+                >
+                  <button className="ml-1 add-request-link">+ Add request</button>
+                </MenuDropdown>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

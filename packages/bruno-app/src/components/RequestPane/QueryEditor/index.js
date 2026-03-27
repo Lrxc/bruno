@@ -11,11 +11,9 @@ import MD from 'markdown-it';
 import { format } from 'prettier/standalone';
 import prettierPluginGraphql from 'prettier/parser-graphql';
 import { getAllVariables } from 'utils/collections';
-import { defineCodeMirrorBrunoVariablesMode } from 'utils/common/codemirror';
+import { PLACEHOLDER } from 'utils/graphql/queryBuilder';
 import toast from 'react-hot-toast';
 import StyledWrapper from './StyledWrapper';
-import { IconWand } from '@tabler/icons';
-
 import onHasCompletion from './onHasCompletion';
 import { setupLinkAware } from 'utils/codemirror/linkAware';
 
@@ -23,6 +21,25 @@ const CodeMirror = require('codemirror');
 
 const md = new MD();
 const AUTO_COMPLETE_AFTER_KEY = /^[a-zA-Z0-9_@(]$/;
+
+const createSafeGraphQLLinter = () => {
+  // Get the original GraphQL lint helper registered by codemirror-graphql
+  const originalLinter = CodeMirror.helpers?.lint?.graphql?.[0];
+
+  return (text, options) => {
+    try {
+      if (originalLinter) {
+        return originalLinter(text, options);
+      }
+      return [];
+    } catch (error) {
+      // Log the error but don't crash - return empty lint results
+      // This can happen if the schema has validation issues
+      console.warn('GraphQL lint error (schema may be invalid):', error.message);
+      return [];
+    }
+  };
+};
 
 export default class QueryEditor extends React.Component {
   constructor(props) {
@@ -57,6 +74,7 @@ export default class QueryEditor extends React.Component {
         minFoldSize: 4
       },
       lint: {
+        getAnnotations: createSafeGraphQLLinter(),
         schema: this.props.schema,
         validationRules: this.props.validationRules ?? null,
         // linting accepts string or FragmentDefinitionNode[]
@@ -186,16 +204,33 @@ export default class QueryEditor extends React.Component {
       this.editor.off('change', this._onEdit);
       this.editor.off('keyup', this._onKeyUp);
       this.editor.off('hasCompletion', this._onHasCompletion);
+      this.editor.off('beforeChange', this._onBeforeChange);
+      // Remove the CodeMirror DOM element so React 18 Strict Mode's
+      // unmount-remount cycle doesn't leave an orphaned instance behind.
+      const wrapper = this.editor.getWrapperElement();
+      if (wrapper && wrapper.parentNode) {
+        wrapper.parentNode.removeChild(wrapper);
+      }
       this.editor = null;
     }
   }
 
   beautifyRequestBody = () => {
     try {
-      const prettyQuery = format(this.props.value, {
+      if (!this.editor) return;
+      const currentValue = this.editor.getValue();
+      if (!currentValue || !currentValue.trim()) return;
+
+      // Temporarily fill empty selection sets so prettier can parse the query
+      // First preserve empty input objects (e.g. input: {}), then fill empty selection sets
+      let sanitized = currentValue.replace(/(:\s*)\{\s*\}/g, '$1{ __empty: true }');
+      sanitized = sanitized.replace(/\{\s*\}/g, `{ ${PLACEHOLDER} }`);
+      let prettyQuery = format(sanitized, {
         parser: 'graphql',
         plugins: [prettierPluginGraphql]
       });
+      prettyQuery = prettyQuery.replace(new RegExp(`^\\s*${PLACEHOLDER}\\n`, 'gm'), '');
+      prettyQuery = prettyQuery.replace(/\{\s*__empty:\s*true\s*\}/g, '{}');
 
       this.editor.setValue(prettyQuery);
       toast.success('Query prettified');
@@ -215,25 +250,15 @@ export default class QueryEditor extends React.Component {
 
   render() {
     return (
-      <>
-        <StyledWrapper
-          className="h-full w-full  flex flex-col relative graphiql-container"
-          aria-label="Query Editor"
-          font={this.props.font}
-          fontSize={this.props.fontSize}
-          ref={(node) => {
-            this._node = node;
-          }}
-        >
-          <button
-            className="btn-add-param text-link px-4 py-4 select-none absolute top-0 right-0 z-10"
-            onClick={this.beautifyRequestBody}
-            title="prettify"
-          >
-            <IconWand size={20} strokeWidth={1.5} />
-          </button>
-        </StyledWrapper>
-      </>
+      <StyledWrapper
+        className="h-full w-full flex flex-col relative graphiql-container"
+        aria-label="Query Editor"
+        font={this.props.font}
+        fontSize={this.props.fontSize}
+        ref={(node) => {
+          this._node = node;
+        }}
+      />
     );
   }
 

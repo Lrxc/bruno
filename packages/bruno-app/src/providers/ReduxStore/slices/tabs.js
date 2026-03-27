@@ -26,7 +26,11 @@ export const tabsSlice = createSlice({
         'collection-runner',
         'environment-settings',
         'global-environment-settings',
-        'preferences'
+        'preferences',
+        'workspaceOverview',
+        'workspaceEnvironments',
+        'openapi-sync',
+        'openapi-spec'
       ];
 
       const existingTab = find(state.tabs, (tab) => tab.uid === uid);
@@ -61,6 +65,7 @@ export const tabsSlice = createSlice({
           responsePaneTab: 'response',
           responseFormat: null,
           responseViewTab: null,
+          scriptPaneTab: null,
           type: type || 'request',
           preview: preview !== undefined
             ? preview
@@ -83,6 +88,12 @@ export const tabsSlice = createSlice({
         responsePaneScrollPosition: null,
         responseFormat: null,
         responseViewTab: null,
+        responseFilter: null,
+        responseFilterExpanded: false,
+        gqlDocsOpen: false,
+        tableColumnWidths: {},
+        scriptPaneTab: null,
+        docsEditing: false,
         type: type || 'request',
         ...(uid ? { folderUid: uid } : {}),
         preview: preview !== undefined
@@ -155,6 +166,13 @@ export const tabsSlice = createSlice({
         tab.responsePaneScrollPosition = action.payload.scrollY;
       }
     },
+    updateRequestBodyScrollPosition: (state, action) => {
+      const tab = find(state.tabs, (t) => t.uid === action.payload.uid);
+
+      if (tab) {
+        tab.requestBodyScrollPosition = action.payload.scrollY;
+      }
+    },
     updateResponseFormat: (state, action) => {
       const tab = find(state.tabs, (t) => t.uid === action.payload.uid);
 
@@ -169,12 +187,87 @@ export const tabsSlice = createSlice({
         tab.responseViewTab = action.payload.responseViewTab;
       }
     },
+    updateResponseFilter: (state, action) => {
+      const tab = find(state.tabs, (t) => t.uid === action.payload.uid);
+
+      if (tab) {
+        tab.responseFilter = action.payload.responseFilter;
+      }
+    },
+    updateResponseFilterExpanded: (state, action) => {
+      const tab = find(state.tabs, (t) => t.uid === action.payload.uid);
+
+      if (tab) {
+        tab.responseFilterExpanded = action.payload.responseFilterExpanded;
+      }
+    },
+    updateDocsEditing: (state, action) => {
+      const tab = find(state.tabs, (t) => t.uid === action.payload.uid);
+
+      if (tab) {
+        tab.docsEditing = action.payload.docsEditing;
+      }
+    },
+    updateGqlDocsOpen: (state, action) => {
+      const tab = find(state.tabs, (t) => t.uid === action.payload.uid);
+
+      if (tab) {
+        tab.gqlDocsOpen = action.payload.gqlDocsOpen;
+      }
+    },
+    updateTableColumnWidths: (state, action) => {
+      const tab = find(state.tabs, (t) => t.uid === action.payload.uid);
+
+      if (tab) {
+        if (!tab.tableColumnWidths) {
+          tab.tableColumnWidths = {};
+        }
+        tab.tableColumnWidths[action.payload.tableId] = action.payload.widths;
+      }
+    },
+    updateScriptPaneTab: (state, action) => {
+      const tab = find(state.tabs, (t) => t.uid === action.payload.uid);
+
+      if (tab) {
+        tab.scriptPaneTab = action.payload.scriptPaneTab;
+      }
+    },
+    updateQueryBuilderOpen: (state, action) => {
+      const tab = find(state.tabs, (t) => t.uid === action.payload.uid);
+
+      if (tab) {
+        tab.queryBuilderOpen = action.payload.queryBuilderOpen;
+      }
+    },
+    updateQueryBuilderWidth: (state, action) => {
+      const tab = find(state.tabs, (t) => t.uid === action.payload.uid);
+
+      if (tab) {
+        tab.queryBuilderWidth = action.payload.queryBuilderWidth;
+      }
+    },
+    updateVariablesPaneOpen: (state, action) => {
+      const tab = find(state.tabs, (t) => t.uid === action.payload.uid);
+
+      if (tab) {
+        tab.variablesPaneOpen = action.payload.variablesPaneOpen;
+      }
+    },
+    updateVariablesPaneHeight: (state, action) => {
+      const tab = find(state.tabs, (t) => t.uid === action.payload.uid);
+
+      if (tab) {
+        tab.variablesPaneHeight = action.payload.variablesPaneHeight;
+      }
+    },
     closeTabs: (state, action) => {
       const activeTab = find(state.tabs, (t) => t.uid === state.activeTabUid);
       const tabUids = action.payload.tabUids || [];
 
-      // remove the tabs from the state
-      state.tabs = filter(state.tabs, (t) => !tabUids.includes(t.uid));
+      const nonClosableTypes = ['workspaceOverview', 'workspaceEnvironments'];
+      state.tabs = filter(state.tabs, (t) =>
+        !tabUids.includes(t.uid) || nonClosableTypes.includes(t.type)
+      );
 
       if (activeTab && state.tabs.length) {
         const { collectionUid } = activeTab;
@@ -201,9 +294,14 @@ export const tabsSlice = createSlice({
       }
     },
     closeAllCollectionTabs: (state, action) => {
-      const collectionUid = action.payload.collectionUid;
+      const { collectionUid } = action.payload;
+      const prevActiveTabUid = state.activeTabUid;
       state.tabs = filter(state.tabs, (t) => t.collectionUid !== collectionUid);
-      state.activeTabUid = null;
+
+      const activeTabStillExists = state.tabs.some((t) => t.uid === prevActiveTabUid);
+      if (!activeTabStillExists) {
+        state.activeTabUid = state.tabs.length > 0 ? last(state.tabs).uid : null;
+      }
     },
     makeTabPermanent: (state, action) => {
       const { uid } = action.payload;
@@ -253,12 +351,23 @@ export const {
   updateRequestPaneTab,
   updateResponsePaneTab,
   updateResponsePaneScrollPosition,
+  updateRequestBodyScrollPosition,
   updateResponseFormat,
   updateResponseViewTab,
+  updateResponseFilter,
+  updateResponseFilterExpanded,
+  updateDocsEditing,
+  updateGqlDocsOpen,
+  updateTableColumnWidths,
+  updateScriptPaneTab,
   closeTabs,
   closeAllCollectionTabs,
   makeTabPermanent,
-  reorderTabs
+  reorderTabs,
+  updateQueryBuilderOpen,
+  updateQueryBuilderWidth,
+  updateVariablesPaneOpen,
+  updateVariablesPaneHeight
 } = tabsSlice.actions;
 
 export default tabsSlice.reducer;

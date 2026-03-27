@@ -172,13 +172,17 @@ class SingleLineEditor extends Component {
       // TODO: temporary fix for keeping cursor state when auto save and new line insertion collide PR#7098
       const nextValue = String(this.props.value ?? '');
       const currentValue = this.editor.getValue();
-      if (this.editor.hasFocus?.() && currentValue !== nextValue) {
+      if (this.editor.hasFocus?.() && currentValue !== nextValue && nextValue !== '') {
         this.cachedValue = currentValue;
       } else {
         const cursor = this.editor.getCursor();
         this.cachedValue = nextValue;
         this.editor.setValue(nextValue);
         this.editor.setCursor(cursor);
+        // Re-apply masking after setValue() since it destroys all CodeMirror marks
+        if (this.maskedEditor && this.maskedEditor.isEnabled()) {
+          this.maskedEditor.update();
+        }
 
         // Update newline markers after value change
         if (this.props.showNewlineArrow) {

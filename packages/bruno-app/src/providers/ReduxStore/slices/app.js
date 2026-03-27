@@ -34,11 +34,20 @@ const initialState = {
       codeFont: 'default'
     },
     general: {
-      defaultCollectionLocation: ''
+      defaultLocation: ''
+    },
+    onboarding: {
+      hasLaunchedBefore: false,
+      hasSeenWelcomeModal: true
     },
     autoSave: {
       enabled: false,
       interval: 1000
+    },
+    cache: {
+      sslSession: {
+        enabled: false
+      }
     }
   },
   generateCode: {
@@ -48,10 +57,17 @@ const initialState = {
   },
   cookies: [],
   taskQueue: [],
+  gitOperationProgress: {},
+  gitVersion: null,
   clipboard: {
     hasCopiedItems: false // Whether clipboard has Bruno data (for UI)
   },
-  systemProxyVariables: {}
+  systemProxyVariables: {},
+  envVarSearch: {
+    collection: { query: '', expanded: false },
+    global: { query: '', expanded: false }
+  },
+  isCreatingCollection: false
 };
 
 export const appSlice = createSlice({
@@ -123,9 +139,33 @@ export const appSlice = createSlice({
     toggleSidebarCollapse: (state) => {
       state.sidebarCollapsed = !state.sidebarCollapsed;
     },
+    updateGitOperationProgress: (state, action) => {
+      const { uid, data } = action.payload;
+      if (!state.gitOperationProgress[uid]) {
+        state.gitOperationProgress[uid] = { progressData: [] };
+      }
+      state.gitOperationProgress[uid].progressData.push(data);
+    },
+    removeGitOperationProgress: (state, action) => {
+      delete state.gitOperationProgress[action.payload];
+    },
+    setGitVersion: (state, action) => {
+      state.gitVersion = action.payload;
+    },
     setClipboard: (state, action) => {
       // Update clipboard UI state
       state.clipboard.hasCopiedItems = action.payload.hasCopiedItems;
+    },
+    setEnvVarSearchQuery: (state, { payload: { context, query } }) => {
+      if (!state.envVarSearch[context]) return;
+      state.envVarSearch[context].query = query;
+    },
+    setEnvVarSearchExpanded: (state, { payload: { context, expanded } }) => {
+      if (!state.envVarSearch[context]) return;
+      state.envVarSearch[context].expanded = expanded;
+    },
+    setIsCreatingCollection: (state, action) => {
+      state.isCreatingCollection = action.payload;
     }
   },
   extraReducers: (builder) => {
@@ -164,7 +204,13 @@ export const {
   updateSystemProxyVariables,
   updateGenerateCode,
   toggleSidebarCollapse,
-  setClipboard
+  updateGitOperationProgress,
+  removeGitOperationProgress,
+  setGitVersion,
+  setClipboard,
+  setEnvVarSearchQuery,
+  setEnvVarSearchExpanded,
+  setIsCreatingCollection
 } = appSlice.actions;
 
 export const savePreferences = (preferences) => (dispatch, getState) => {
@@ -257,6 +303,13 @@ export const refreshSystemProxy = () => (dispatch, getState) => {
         return variables;
       })
       .then(resolve).catch(reject);
+  });
+};
+
+export const clearHttpHttpsAgentCache = () => () => {
+  return new Promise((resolve, reject) => {
+    const { ipcRenderer } = window;
+    ipcRenderer.invoke('renderer:clear-http-https-agent-cache').then(resolve).catch(reject);
   });
 };
 

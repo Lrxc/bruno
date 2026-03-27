@@ -3,6 +3,9 @@ import { mockDataFunctions } from '@usebruno/common';
 const CodeMirror = require('codemirror');
 
 // Static API hints - Bruno JavaScript API (subgrouped by category)
+// TODO: Restore the commented-out APIs once the UI update fixes are live.
+// Currently these APIs only work within the request lifecycle but fail to update the UI tables.
+// e.g., setCollectionVar only sets the variable in the request lifecycle, fails to update the table in the UI.
 const STATIC_API_HINTS = {
   req: [
     'req',
@@ -23,6 +26,8 @@ const STATIC_API_HINTS = {
     'req.getHeaders()',
     'req.setHeader(name, value)',
     'req.setHeaders(data)',
+    'req.deleteHeader(name)',
+    'req.deleteHeaders(data)',
     'req.getBody()',
     'req.setBody(data)',
     'req.setMaxRedirects(maxRedirects)',
@@ -65,14 +70,22 @@ const STATIC_API_HINTS = {
     'bru.getEnvVar(key)',
     'bru.getFolderVar(key)',
     'bru.getCollectionVar(key)',
+    // 'bru.setCollectionVar(key, value)',
+    'bru.hasCollectionVar(key)',
+    // 'bru.deleteCollectionVar(key)',
+    // 'bru.deleteAllCollectionVars()',
+    // 'bru.getAllCollectionVars()',
     'bru.setEnvVar(key, value)',
     'bru.setEnvVar(key, value, options)',
     'bru.deleteEnvVar(key)',
+    'bru.getAllEnvVars()',
+    'bru.deleteAllEnvVars()',
     'bru.hasVar(key)',
     'bru.getVar(key)',
     'bru.setVar(key,value)',
     'bru.deleteVar(key)',
     'bru.deleteAllVars()',
+    'bru.getAllVars()',
     'bru.setNextRequest(requestName)',
     'bru.getRequestVar(key)',
     'bru.runRequest(requestPathName)',
@@ -83,8 +96,12 @@ const STATIC_API_HINTS = {
     'bru.sleep(ms)',
     'bru.getCollectionName()',
     'bru.isSafeMode()',
+    'bru.getOauth2CredentialVar(key)',
     'bru.getGlobalEnvVar(key)',
     'bru.setGlobalEnvVar(key, value)',
+    // 'bru.deleteGlobalEnvVar(key)',
+    'bru.getAllGlobalEnvVars()',
+    // 'bru.deleteAllGlobalEnvVars()',
     'bru.runner',
     'bru.runner.setNextRequest(requestName)',
     'bru.runner.skipRequest()',
@@ -100,9 +117,11 @@ const STATIC_API_HINTS = {
     'bru.cookies.jar().clear(callback)',
     'bru.cookies.jar().deleteCookies(url, callback)',
     'bru.cookies.jar().deleteCookie(url, name, callback)',
+    'bru.cookies.jar().hasCookie(url, name, callback)',
     'bru.utils',
     'bru.utils.minifyJson(json)',
-    'bru.utils.minifyXml(xml)'
+    'bru.utils.minifyXml(xml)',
+    'bru.resetOauth2Credential(credentialId)'
   ]
 };
 

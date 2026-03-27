@@ -71,20 +71,41 @@ const createRedirectConfig = (error, redirectUrl) => {
  * @see https://github.com/axios/axios/issues/695
  * @returns {axios.AxiosInstance}
  */
-function makeAxiosInstance({ requestMaxRedirects = 5, disableCookies } = {}) {
+function makeAxiosInstance({ requestMaxRedirects = 5, disableCookies, followRedirects = true } = {}) {
   let redirectCount = 0;
 
   /** @type {axios.AxiosInstance} */
   const instance = axios.create({
     proxy: false,
     maxRedirects: 0,
-    headers: {
-      'User-Agent': `bruno-runtime/${CLI_VERSION}`
-    }
+    headers: {}
   });
+
+  // Set User-Agent manually (using transformRequest to delete headers instead)
+  instance.defaults.headers.common = {
+    'User-Agent': `bruno-runtime/${CLI_VERSION}`
+  };
 
   instance.interceptors.request.use((config) => {
     config.headers['request-start-time'] = Date.now();
+
+    /**
+      Apply header deletions requested via req.deleteHeader() in pre-request scripts.
+      Using set(name, null) rather than delete(): the axios http adapter guards its
+      own defaults (User-Agent, Accept-Encoding) with set(..., false) which only
+      skips writing when the key already exists. delete() removes the key entirely,
+      so the guard misses and the adapter re-adds the default. null keeps the key
+      present (blocking the guard) while toJSON() omits null values from the wire.
+    */
+    const headersToDelete = config.__headersToDelete;
+    if (headersToDelete && Array.isArray(headersToDelete)) {
+      headersToDelete.forEach((headerName) => {
+        const lower = headerName.toLowerCase();
+        if (lower === 'host' || lower === 'connection') return;
+        config.headers.set(headerName, null);
+      });
+      delete config.__headersToDelete;
+    }
 
     // Add cookies to request if available and not disabled
     if (!disableCookies) {
@@ -113,6 +134,14 @@ function makeAxiosInstance({ requestMaxRedirects = 5, disableCookies } = {}) {
         error.response.headers['request-duration'] = end - start;
 
         if (redirectResponseCodes.includes(error.response.status)) {
+          if (!followRedirects) {
+            if (!disableCookies) {
+              saveCookies(error.config.url, error.response.headers);
+            }
+
+            return Promise.reject(error);
+          }
+
           if (redirectCount >= requestMaxRedirects) {
             // todo: needs to be discussed whether the original error response message should be modified or not
             return Promise.reject(error);

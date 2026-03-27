@@ -45,17 +45,28 @@ const defaultPreferences = {
   layout: {
     responsePaneOrientation: 'horizontal'
   },
-  beta: {},
+  beta: {
+    'openapi-sync': false
+  },
   onboarding: {
-    hasLaunchedBefore: false
+    hasLaunchedBefore: false,
+    hasSeenWelcomeModal: true
   },
   general: {
-    defaultCollectionLocation: '',
+    defaultLocation: '',
     defaultWorkspacePath: ''
   },
   autoSave: {
     enabled: false,
     interval: 1000
+  },
+  display: {
+    zoomPercentage: 100
+  },
+  cache: {
+    sslSession: {
+      enabled: false
+    }
   }
 };
 
@@ -99,18 +110,28 @@ const preferencesSchema = Yup.object().shape({
     responsePaneOrientation: Yup.string().oneOf(['horizontal', 'vertical'])
   }),
   beta: Yup.object({
+    'openapi-sync': Yup.boolean()
   }),
   onboarding: Yup.object({
-    hasLaunchedBefore: Yup.boolean()
+    hasLaunchedBefore: Yup.boolean(),
+    hasSeenWelcomeModal: Yup.boolean()
   }),
   general: Yup.object({
-    defaultCollectionLocation: Yup.string().max(1024).nullable(),
+    defaultLocation: Yup.string().max(1024).nullable(),
     defaultWorkspacePath: Yup.string().max(1024).nullable()
   }),
   autoSave: Yup.object({
     enabled: Yup.boolean(),
     interval: Yup.number().min(100)
-  })
+  }),
+  display: Yup.object({
+    zoomPercentage: Yup.number().min(50).max(150)
+  }),
+  cache: Yup.object({
+    sslSession: Yup.object({
+      enabled: Yup.boolean()
+    })
+  }).optional()
 });
 
 class PreferencesStore {
@@ -224,6 +245,14 @@ class PreferencesStore {
       }
     }
 
+    // Migrate from defaultCollectionLocation to defaultLocation
+    if (preferences.general?.defaultCollectionLocation !== undefined
+      && preferences.general?.defaultLocation === undefined) {
+      preferences.general.defaultLocation = preferences.general.defaultCollectionLocation;
+      delete preferences.general.defaultCollectionLocation;
+      this.store.set('preferences', preferences);
+    }
+
     return merge({}, defaultPreferences, preferences);
   }
 
@@ -285,6 +314,12 @@ const preferencesUtil = {
   },
   isBetaFeatureEnabled: (featureName) => {
     return get(getPreferences(), `beta.${featureName}`, false);
+  },
+  getZoomPercentage: () => {
+    return get(getPreferences(), 'display.zoomPercentage', 100);
+  },
+  isSslSessionCachingEnabled: () => {
+    return get(getPreferences(), 'cache.sslSession.enabled', false);
   },
   hasLaunchedBefore: () => {
     return get(getPreferences(), 'onboarding.hasLaunchedBefore', false);
